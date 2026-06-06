@@ -224,7 +224,7 @@ input:checked+.slider:before{transform:translateX(20px);}
     <!-- ？バッジ -->
     <div style="width:26px;height:26px;background:#c85a2a;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;color:white;margin-left:2px;align-self:center">?</div>
   </div>
-  <p>派遣・パート・アルバイトさん向け 給与シミュレーター</p>
+  <p>派遣・パート・アルバイトさん向け<br>給与シミュレーター</p>
 </header>
 
 <div class="tabs">
@@ -263,11 +263,11 @@ input:checked+.slider:before{transform:translateX(20px);}
     <p class="note" style="margin-bottom:12px">月額を入力すると、集計の手取り概算から差し引かれます。加入していない場合は空欄のままでOK。</p>
     <div class="field">
       <label>健康保険料（円/月）</label>
-      <input type="number" id="insuranceHealth" placeholder="0" min="0" value="">
+      <input type="text" id="insuranceHealth" placeholder="例: 15,000" inputmode="numeric" oninput="formatWageInput(this)" value="">
     </div>
     <div class="field">
       <label>年金保険料（円/月）</label>
-      <input type="number" id="insurancePension" placeholder="国民年金: 16,980円など" min="0" value="">
+      <input type="text" id="insurancePension" placeholder="例: 16,980" inputmode="numeric" oninput="formatWageInput(this)" value="">
     </div>
     <div class="field">
       <label>雇用保険料</label>
@@ -954,8 +954,8 @@ function calculate(targetEntries, fromYearly=false){
       taxAmount+=estimateTax(p.taxablePay, p.taxTable);
     });
   });
-  const insHealth   = parseFloat(document.getElementById('insuranceHealth').value)||0;
-  const insPension  = parseFloat(document.getElementById('insurancePension').value)||0;
+  const insHealth   = parseFloat(document.getElementById('insuranceHealth').value.replace(/[^\d]/g,'')||'0')||0;
+  const insPension  = parseFloat(document.getElementById('insurancePension').value.replace(/[^\d]/g,'')||'0')||0;
   const insEmploy   = document.getElementById('insuranceEmployment').checked
                       ? Math.floor(grandTaxable*0.006) : 0;
   const totalIns    = insHealth + insPension + insEmploy;
@@ -1002,6 +1002,8 @@ function calculate(targetEntries, fromYearly=false){
         <div class="job-stat-row"><span>出勤日数</span><span class="job-stat-val">${jt.days}日</span></div>
         <div class="job-stat-row"><span>実働時間</span><span class="job-stat-val">${minToHMS(jt.workMin)}</span></div>
         <div class="job-stat-row"><span>時給分</span><span class="job-stat-val">¥${fmt(jt.basePay)}</span></div>
+        <div class="job-stat-row"><span>所得税概算（${j?.taxTable==='otsu'?'乙欄':'甲欄'}）</span><span class="job-stat-val">¥${fmt(estimateTax(jt.taxablePay, j?.taxTable||'kou'))}</span></div>
+        <div class="job-stat-row"><span>税率目安</span><span class="job-stat-val">${jt.taxablePay>0?Math.round(estimateTax(jt.taxablePay,j?.taxTable||'kou')/jt.taxablePay*1000)/10:0}%</span></div>
         ${transport>0?`<div class="job-stat-row"><span>交通費（非課税）</span><span class="job-stat-val">+¥${fmt(transport)}</span></div>`:''}
         ${taxableAllow>0?`<div class="job-stat-row"><span>課税手当</span><span class="job-stat-val">+¥${fmt(taxableAllow)}</span></div>`:''}
         ${nontaxAllow>0?`<div class="job-stat-row"><span>非課税手当</span><span class="job-stat-val">+¥${fmt(nontaxAllow)}</span></div>`:''}
@@ -1038,7 +1040,7 @@ function calculate(targetEntries, fromYearly=false){
       <div class="result-title" style="color:#a8e6c4">所得税概算（源泉徴収）</div>
       <div class="result-total"><span>¥</span>${fmt(taxAmount)}</div>
       <div class="result-rows">
-        <div class="result-row"><span class="result-row-label">税率目安</span><span class="result-row-val normal">${grandTaxable>0?Math.round(taxAmount/grandTaxable*1000)/10:0}%</span></div>
+        <div class="result-row"><span class="result-row-label">税率・内訳</span><span class="result-row-val normal" style="font-size:11px;opacity:0.7">↓ 働き先別を参照</span></div>
         ${totalIns>0?`
         <div class="result-row"><span class="result-row-label">健康保険料</span><span class="result-row-val normal">－¥${fmt(insHealth)}</span></div>
         <div class="result-row"><span class="result-row-label">年金保険料</span><span class="result-row-val normal">－¥${fmt(insPension)}</span></div>
