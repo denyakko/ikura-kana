@@ -173,6 +173,19 @@ input:checked+.slider:before{transform:translateX(20px);}
 .sub-field{background:var(--surface2);border-radius:8px;padding:12px;margin-top:8px;}
 .divider{height:1px;background:var(--surface2);margin:12px 0;}
 
+/* 印刷用 */
+@media print {
+  .tabs, .tab-btn, .primary-btn, .secondary-btn, .add-btn, .calc-btn,
+  .toast, header p, .del-btn, .icon-btn, .del-sm-btn, .del-limit-btn { display: none !important; }
+  .tab-panel { display: block !important; }
+  body { background: white; padding: 10px; }
+  .card { box-shadow: none; border: 1px solid #ccc; margin-bottom: 10px; break-inside: avoid; }
+  .result-card { background: #333 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  header { margin-bottom: 10px; }
+  #tab-settings, #tab-record { display: none !important; }
+  #tab-result { display: block !important; }
+}
+
 /* トースト通知 */
 .toast {
   position: fixed;
@@ -288,7 +301,10 @@ input:checked+.slider:before{transform:translateX(20px);}
   </div>
 
   <div class="card">
-    <div class="card-title">📊 年収上限アラート（任意）</div>
+    <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+      <span>📊 年収上限アラート（任意）</span>
+      <span id="limitBadge"></span>
+    </div>
     <p class="note" style="margin-bottom:12px">超えたくない年収の上限を自由に設定。扶養の壁など用途に合わせて。未設定なら非表示。<br>金額は<b>課税分の額面</b>（交通費・非課税手当を除く）で管理します。</p>
     <div id="limitsContainer"></div>
     <button class="add-btn" onclick="addLimit()" style="margin-top:4px">＋ 上限を追加</button>
@@ -360,10 +376,11 @@ input:checked+.slider:before{transform:translateX(20px);}
 
 <!-- ===== 集計タブ ===== -->
 <div id="tab-result" class="tab-panel">
-  <div style="display:flex;gap:8px;margin-bottom:12px">
+  <div style="display:flex;gap:8px;margin-bottom:8px">
     <button class="primary-btn" id="btnMonthly" onclick="showView('monthly')" style="flex:1;font-size:14px;padding:13px 8px">🧮 月次集計</button>
     <button class="primary-btn" id="btnYearly"  onclick="showView('yearly')"  style="flex:1;font-size:14px;padding:13px 8px;background:var(--tag)">📅 年間一覧</button>
   </div>
+  <button onclick="printResult()" class="secondary-btn" style="width:100%;margin-bottom:12px;font-size:13px">🖨️ 印刷・PDF保存</button>
   <div id="resultArea"></div>
 </div>
 
@@ -726,14 +743,23 @@ function deleteLimit(id){
   limits=limits.filter(l=>l.id!==id); save(); renderLimits();
 }
 function updateLimit(id,field,val){
-  const l=limits.find(l=>l.id===id); if(l){l[field]=val;save();}
+  const l=limits.find(l=>l.id===id); if(l){l[field]=val;save();updateLimitBadge();}
 }
+function updateLimitBadge(){
+  const badge=document.getElementById('limitBadge');
+  if(!badge) return;
+  const hasLimit=limits.filter(l=>l.amount&&parseFloat(String(l.amount).replace(/[^\d]/g,''))>0).length>0;
+  badge.innerHTML=hasLimit
+    ? '<span style="font-size:10px;background:#3a7d5a;color:white;padding:2px 8px;border-radius:10px;font-weight:700">✓ 設定済み</span>'
+    : '<span style="font-size:10px;background:var(--surface2);color:var(--text2);padding:2px 8px;border-radius:10px;font-weight:700">未設定</span>';
+}
+
 function renderLimits(){
   const el=document.getElementById('limitsContainer');
   el.innerHTML=limits.map(l=>`
     <div class="limit-row">
-      <input type="text" placeholder="ラベル（任意）" value="${escH(l.label)}" oninput="updateLimit(${l.id},'label',this.value)" style="font-size:13px;padding:8px 10px">
-      <input type="number" placeholder="金額例: 1030000" value="${l.amount}" oninput="updateLimit(${l.id},'amount',this.value)" min="0" style="font-size:13px;padding:8px 10px">
+      <input type="text" placeholder="タイトル（任意）" value="${escH(l.label)}" oninput="updateLimit(${l.id},'label',this.value)" style="font-size:13px;padding:8px 10px">
+      <input type="text" placeholder="例: 1,030,000" value="${l.amount?parseInt(String(l.amount).replace(/[^\d]/g,'')).toLocaleString('ja-JP'):''}" inputmode="numeric" oninput="formatWageInput(this);updateLimit(${l.id},'amount',this.value.replace(/[^\d]/g,''))" style="font-size:13px;padding:8px 10px">
       <button class="del-sm-btn" onclick="deleteLimit(${l.id})">×</button>
     </div>`).join('');
 }
@@ -1239,11 +1265,11 @@ function jumpToMonth(month){
 }
 
 function buildLimitHtml(yearTaxable, prevIncome, thisMonthTaxable){
-  const active=limits.filter(l=>l.amount&&parseFloat(l.amount)>0);
+  const active=limits.filter(l=>l.amount&&parseFloat(String(l.amount).replace(/[^\d]/g,''))>0);
   if(active.length===0) return '';
   const alerts=[];
   const items=active.map(l=>{
-    const limit=parseFloat(l.amount);
+    const limit=parseFloat(String(l.amount).replace(/[^\d]/g,''));
     const label=l.label||`上限 ¥${fmt(limit)}`;
     const pct=Math.min(yearTaxable/limit*100,100);
     const remaining=limit-yearTaxable;
@@ -1260,9 +1286,38 @@ function buildLimitHtml(yearTaxable, prevIncome, thisMonthTaxable){
     </div>`;
   }).join('');
   const alertHtml=alerts.length>0?`<div class="wall-alert">${alerts.join('<br>')}</div>`:'';
+
+  // あと何時間働けるか（時給ベース・手当除く）
+  // 上限が1つだけの場合、各働き先ごとに表示
+  const validJobs = jobs.filter(j=>(parseFloat(String(j.wage||'').replace(/[^\d]/g,''))||0)>0);
+  let workhourRows = '';
+  if(active.length > 0 && validJobs.length > 0){
+    const firstLimit = parseFloat(String(active[0].amount).replace(/[^\d]/g,''))||0;
+    const remaining = firstLimit - yearTaxable;
+    validJobs.forEach(j=>{
+      const wage = parseFloat(String(j.wage||'').replace(/[^\d]/g,''))||0;
+      const hours = remaining > 0 ? Math.floor(remaining/wage) : 0;
+      const label = remaining > 0 ? `あと約${fmt(hours)}時間` : '上限超過';
+      workhourRows += `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--surface2);font-size:13px">
+        <span style="display:flex;align-items:center;gap:6px">
+          <span style="width:8px;height:8px;border-radius:50%;background:${j.color};flex-shrink:0;display:inline-block"></span>
+          <span>${escH(j.name)||'（名前未設定）'}</span>
+          <span style="font-size:11px;color:var(--text2)">¥${fmt(wage)}/h</span>
+        </span>
+        <span style="font-family:'DM Mono',monospace;font-weight:500;color:${remaining>0?'var(--green)':'var(--accent)'}">${label}</span>
+      </div>`;
+    });
+  }
+
+  const workhourHtml = workhourRows ? `
+    <div style="margin-top:12px;border-top:1px solid var(--surface2);padding-top:10px">
+      <div style="font-size:11px;font-weight:700;color:var(--tag);letter-spacing:0.08em;margin-bottom:8px">⏱️ あと何時間働ける？（時給分のみ・手当除く）</div>
+      ${workhourRows}
+    </div>` : '';
+
   return `<div class="card">
     <div class="card-title">📊 年収上限チェック（課税分）</div>
-    ${items}${alertHtml}
+    ${items}${alertHtml}${workhourHtml}
   </div>`;
 }
 
@@ -1429,9 +1484,19 @@ function exportCSVMonthly(){
   downloadFile(`salary_monthly_${todayStr()}.csv`, csv, 'text/csv;charset=utf-8');
 }
 
+// ======== Print ========
+function printResult(){
+  if(document.getElementById('resultArea').innerHTML.trim()===''){
+    alert('先に集計してください');
+    return;
+  }
+  window.print();
+}
+
 // ======== Init ========
 renderJobs();
 renderLimits();
+updateLimitBadge();
 renderJobSelect();
 const today=new Date();
 document.getElementById('newDate').value=
