@@ -748,7 +748,7 @@ function updateLimit(id,field,val){
 function updateLimitBadge(){
   const badge=document.getElementById('limitBadge');
   if(!badge) return;
-  const hasLimit=limits.filter(l=>l.amount&&parseFloat(String(l.amount).replace(/[^\d]/g,''))>0).length>0;
+  const hasLimit=limits.filter(l=>{ const v=parseFloat(String(l.amount||'').replace(/[^\d]/g,'')); return v>0; }).length>0;
   badge.innerHTML=hasLimit
     ? '<span style="font-size:10px;background:#3a7d5a;color:white;padding:2px 8px;border-radius:10px;font-weight:700">✓ 設定済み</span>'
     : '<span style="font-size:10px;background:var(--surface2);color:var(--text2);padding:2px 8px;border-radius:10px;font-weight:700">未設定</span>';
@@ -762,6 +762,7 @@ function renderLimits(){
       <input type="text" placeholder="例: 1,030,000" value="${l.amount?parseInt(String(l.amount).replace(/[^\d]/g,'')).toLocaleString('ja-JP'):''}" inputmode="numeric" oninput="formatWageInput(this);updateLimit(${l.id},'amount',this.value.replace(/[^\d]/g,''))" style="font-size:13px;padding:8px 10px">
       <button class="del-sm-btn" onclick="deleteLimit(${l.id})">×</button>
     </div>`).join('');
+  updateLimitBadge();
 }
 
 // ======== Job Select ========
