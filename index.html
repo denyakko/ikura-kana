@@ -767,7 +767,7 @@ function renderLimits(){
   el.innerHTML=limits.map(l=>`
     <div class="limit-row">
       <input type="text" placeholder="タイトル（任意）" value="${escH(l.label)}" oninput="updateLimit(${l.id},'label',this.value)" style="font-size:13px;padding:8px 10px">
-      <input type="text" placeholder="例: 1,030,000" value="${l.amount?parseInt(String(l.amount).replace(/[^\d]/g,'')).toLocaleString('ja-JP'):''}" inputmode="numeric" oninput="formatWageInput(this);updateLimit(${l.id},'amount',this.value.replace(/[^\d]/g,''))" style="font-size:13px;padding:8px 10px">
+      <input type="number" placeholder="例: 1030000" value="${l.amount||''}" oninput="updateLimit(${l.id},'amount',this.value);updateLimitBadge()" style="font-size:13px;padding:8px 10px">
       <button class="del-sm-btn" onclick="deleteLimit(${l.id})">×</button>
     </div>`).join('');
   updateLimitBadge();
