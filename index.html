@@ -283,6 +283,11 @@ input:checked+.slider:before{transform:translateX(20px);}
       <input type="text" id="insurancePension" placeholder="例: 16,980" inputmode="numeric" oninput="formatWageInput(this)" value="">
     </div>
     <div class="field">
+      <label>住民税（円/月）</label>
+      <input type="text" id="insuranceResident" placeholder="例: 8,000" inputmode="numeric" oninput="formatWageInput(this)" value="">
+      <p class="note">前年の所得・ふるさと納税などにより異なります。給与明細の金額を入力してください。</p>
+    </div>
+    <div class="field">
       <label>雇用保険料</label>
       <div class="toggle-row" style="padding:8px 0;border-bottom:none">
         <div>
@@ -295,7 +300,7 @@ input:checked+.slider:before{transform:translateX(20px);}
     <div class="field" style="background:var(--surface2);border-radius:8px;padding:10px">
       <div style="font-size:11px;color:var(--text2);line-height:1.7">
         💡 <b>目安：</b>国民年金 約17,000円/月　国民健康保険は市区町村・収入により異なります。<br>
-        社会保険（会社加入）の場合は給与明細の金額を入力してください。
+        社会保険・住民税は給与明細の金額を入力してください。住民税はふるさと納税などでも変わります。
       </div>
     </div>
   </div>
@@ -991,9 +996,10 @@ function calculate(targetEntries, fromYearly=false){
   });
   const insHealth   = parseFloat(document.getElementById('insuranceHealth').value.replace(/[^\d]/g,'')||'0')||0;
   const insPension  = parseFloat(document.getElementById('insurancePension').value.replace(/[^\d]/g,'')||'0')||0;
+  const insResident = parseFloat(document.getElementById('insuranceResident').value.replace(/[^\d]/g,'')||'0')||0;
   const insEmploy   = document.getElementById('insuranceEmployment').checked
                       ? Math.floor(grandTaxable*0.006) : 0;
-  const totalIns    = insHealth + insPension + insEmploy;
+  const totalIns    = insHealth + insPension + insResident + insEmploy;
 
   // 働き先別セクション
   const jobSections=Object.values(jobTotals).map(jt=>{
@@ -1079,6 +1085,7 @@ function calculate(targetEntries, fromYearly=false){
         ${totalIns>0?`
         <div class="result-row"><span class="result-row-label">健康保険料</span><span class="result-row-val normal">－¥${fmt(insHealth)}</span></div>
         <div class="result-row"><span class="result-row-label">年金保険料</span><span class="result-row-val normal">－¥${fmt(insPension)}</span></div>
+        ${insResident>0?`<div class="result-row"><span class="result-row-label">住民税</span><span class="result-row-val normal">－¥${fmt(insResident)}</span></div>`:''}
         ${insEmploy>0?`<div class="result-row"><span class="result-row-label">雇用保険料（0.6%）</span><span class="result-row-val normal">－¥${fmt(insEmploy)}</span></div>`:''}
         `:''}
       </div>
@@ -1089,7 +1096,8 @@ function calculate(targetEntries, fromYearly=false){
       <div class="result-rows">
         <div class="result-row"><span class="result-row-label">支給総額</span><span class="result-row-val normal">¥${fmt(grandTotal)}</span></div>
         <div class="result-row"><span class="result-row-label">－ 所得税</span><span class="result-row-val normal">¥${fmt(taxAmount)}</span></div>
-        ${totalIns>0?`<div class="result-row"><span class="result-row-label">－ 社会保険料合計</span><span class="result-row-val normal">¥${fmt(totalIns)}</span></div>`:''}
+        ${insResident>0?`<div class="result-row"><span class="result-row-label">－ 住民税</span><span class="result-row-val normal">¥${fmt(insResident)}</span></div>`:''}
+        ${(totalIns-insResident)>0?`<div class="result-row"><span class="result-row-label">－ 社会保険料合計</span><span class="result-row-val normal">¥${fmt(totalIns-insResident)}</span></div>`:''}
       </div>
     </div>
 
